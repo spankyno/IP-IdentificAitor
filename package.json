@@ -13,7 +13,10 @@
     "start:static": "NODE_ENV=production SERVE_STATIC=1 tsx server.ts",
     "preview": "vite preview",
     "clean": "rm -rf dist",
-    "lint": "tsc --noEmit"
+    "lint": "tsc --noEmit",
+    "test": "tsx --test src/lib/validators.test.ts && node --test functions/_mocks.test.js",
+    "test:validators": "tsx --test src/lib/validators.test.ts",
+    "test:mocks": "node --test functions/_mocks.test.js"
   },
   "dependencies": {
     "@clerk/clerk-react": "^5.25.0",

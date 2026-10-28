@@ -5,6 +5,7 @@ import { Dashboard } from './components/Dashboard';
 import { AboutView } from './components/AboutView';
 import { HistoryDrawer } from './components/HistoryDrawer';
 import { Footer } from './components/Footer';
+import { PrivacyNotice } from './components/PrivacyNotice';
 import { ToastProvider } from './components/ui/Toast';
 import { QueryHistoryItem, UsageQuota, UserRole } from './types/ipqs';
 import {
@@ -178,6 +179,8 @@ export default function App() {
         </main>
 
         <Footer onNavigate={setCurrentTab} />
+
+        <PrivacyNotice />
 
         <HistoryDrawer
           isOpen={isHistoryOpen}
