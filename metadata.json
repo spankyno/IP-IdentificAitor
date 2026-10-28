@@ -1,0 +1,8 @@
+{
+  "name": "IP IdentificAitor",
+  "description": "Plataforma de inteligencia de amenazas, reputación de IP, verificación de correo, teléfonos, dominios y huellas de dispositivo.",
+  "requestFramePermissions": [],
+  "majorCapabilities": [
+    "MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"
+  ]
+}
