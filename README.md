@@ -6,71 +6,96 @@ Ofrece un diseño premium y minimalista en modo oscuro, puntuaciones de riesgo u
 
 ---
 
-## 🚀 Capacidades y Endpoints de LayerCall
+## 🚀 Capacidades
 
-1. **Inteligencia IP (`https://www.layercall.com/v1/score/ip`)**
-   - **Veredicto:** `allow` (Permitir), `review` (Revisar), `block` (Bloquear).
-   - **Risk Score:** Puntuación normalizada de 0 a 100.
-   - **Señales:** Detección de `is_vpn`, `is_proxy`, `is_tor`, `is_datacenter`, `recent_abuse`, `is_hijacked_netblock`, `is_crawler`.
-   - **Geolocalización & Red:** País, región, ciudad, ASN, ISP y zona horaria.
-   - **Latencia:** Métrica en tiempo real `processing_time_sec`.
-
-2. **Validación de Correo (`https://www.layercall.com/v1/verify/email`)**
-   - **Señales:** `syntax_valid`, `mx_found`, `is_disposable`, `is_role_account`, `is_free_provider`, `is_catch_all`.
-   - **Infraestructura:** Host MX, nombre del proveedor y antigüedad estimada del dominio.
-
-3. **Verificación Telefónica (`https://www.layercall.com/v1/lookup/phone`)**
-   - **Señales:** `is_voip`, `is_disposable`, `is_premium_rate`, `recent_abuse`, `is_spammer`.
-   - **Metadatos:** Operador móvil (*carrier*), tipo de línea (`mobile`, `voip`, `fixed_line`), formato nacional e internacional.
-
-4. **Fingerprint & Detección de Dispositivo**
-   - Huella de Canvas 2D, renderizador GPU WebGL, cores lógicos de CPU y resolución.
-   - Detección de automatizaciones (`navigator.webdriver`, Selenium, Puppeteer) y navegadores en modo *Headless*.
-
-5. **Límites de Uso & Arquitectura para Clerk**
-   - **Usuario Anónimo:** 10 consultas / día.
-   - **Usuario Registrado:** 50 consultas / día.
-   - **Administrador:** Ilimitadas.
+1. **Inteligencia IP** — VPN, proxy, Tor, datacenter, geolocalización, ASN/ISP
+2. **Validación de correo** — sintaxis, MX, desechable, rol, honeypot
+3. **Verificación telefónica** — VoIP, spam, carrier, tipo de línea
+4. **Dominio** — antigüedad, SPF/DMARC, registrador
+5. **Fingerprint de dispositivo** — canvas, WebGL, headless/webdriver
+6. **Cuotas** — Anónimo 10/día · Registrado 50/día · Admin ∞
 
 ---
 
-## 🔑 Variables de Entorno
+## 🔑 Variables de entorno
 
 ```bash
-# Clave API de LayerCall (https://www.layercall.com)
 LAYERCALL_API_KEY="tl_live_tu_clave_aqui"
 ```
 
-> **Nota:** Si no se define `LAYERCALL_API_KEY`, IP IdentificAitor opera automáticamente en **Modo Sandbox**, emulando las respuestas oficiales de LayerCall con total fidelidad para pruebas locales y demostraciones.
+Si no se define, opera en **Modo Sandbox** con respuestas simuladas.
 
 ---
 
-## 📦 Instalación y Desarrollo Local
+## 📦 Desarrollo local
 
 ```bash
-# 1. Clonar el repositorio
-git clone https://github.com/tu-usuario/ip-identificaitor.git
-cd ip-identificaitor
-
-# 2. Instalar dependencias
-npm install
-
-# 3. Iniciar el servidor de desarrollo
+npm install --legacy-peer-deps
 npm run dev
 ```
 
-Abre tu navegador en `http://localhost:3000`.
+Abre `http://localhost:3000`. El servidor Express + Vite transforma `/src/*.tsx` y expone `/api/*`.
 
 ---
 
-## ☁️ Despliegue en Cloudflare Pages
+## ☁️ Despliegue en Cloudflare Pages (producción)
 
-1. Sube tu código a **GitHub**.
-2. En Cloudflare Dashboard > **Workers & Pages** > **Create application** > **Pages** > **Connect to Git**.
-3. Selecciona el repositorio.
-4. En **Environment variables**, añade:
-   - `LAYERCALL_API_KEY`: Tu clave obtenida en [layercall.com](https://www.layercall.com/).
-5. Despliega la aplicación.
+### Causa del error MIME / página en blanco
+
+Cloudflare Pages es **estático**: no ejecuta `server.ts` ni sirve TypeScript.
+Si despliegas el código fuente, el navegador pide `/src/main.tsx` y recibe
+`Content-Type: application/octet-stream` → la página no carga.
+
+**Solución:** construir con Vite y publicar solo la carpeta `dist/`.
+
+### Configuración en Cloudflare Dashboard
+
+1. **Workers & Pages** → tu proyecto → **Settings** → **Builds and deployments**
+2. Ajusta exactamente:
+
+| Campo | Valor |
+|-------|--------|
+| Framework preset | *(ninguno / None — no uses VitePress)* |
+| Build command | `npm run build` |
+| Build output directory | `dist` |
+| Root directory | *(vacío)* |
+| Node version | **20** (o 18) |
+
+> El archivo `.npmrc` con `legacy-peer-deps=true` evita el error `ERESOLVE` en el `npm install` de Cloudflare.
+
+3. **Environment variables** (Production):
+   - `LAYERCALL_API_KEY` = tu clave de [layercall.com](https://www.layercall.com/)
+
+4. **Save** y **Retry deployment** (o push a Git).
+
+### Verificación tras el deploy
+
+En DevTools → Network, el HTML debe cargar scripts tipo:
+
+```
+/assets/index-XXXXXXXX.js
+```
+
+**NO** debe aparecer `/src/main.tsx`.
+
+### API en Cloudflare
+
+Las rutas `/api/*` se ejecutan con **Pages Functions** (`/functions/api/*`):
+- `/api/check-ip`
+- `/api/check-email`
+- `/api/check-phone`
+- `/api/check-domain`
+- `/api/config-status`
+- `/api/detect-ip`
+
+Sin `LAYERCALL_API_KEY` responden en modo sandbox.
+
+### Deploy manual con Wrangler (opcional)
+
+```bash
+npm run build
+npx wrangler pages deploy dist --project-name=ip-identificaitor
+```
 
 ---
 
