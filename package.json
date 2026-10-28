@@ -16,6 +16,7 @@
     "lint": "tsc --noEmit"
   },
   "dependencies": {
+    "@clerk/clerk-react": "^5.25.0",
     "@tailwindcss/vite": "^4.1.4",
     "@vitejs/plugin-react": "^4.3.4",
     "lucide-react": "^0.475.0",

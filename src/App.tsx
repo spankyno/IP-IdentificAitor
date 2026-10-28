@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { useUser } from '@clerk/clerk-react';
 import { Header } from './components/Header';
 import { Dashboard } from './components/Dashboard';
 import { AboutView } from './components/AboutView';
@@ -9,11 +10,41 @@ import { QueryHistoryItem, UsageQuota, UserRole } from './types/ipqs';
 import {
   getSavedUsageQuota,
   incrementUsageCount,
-  setSimulatedRole,
+  setAuthRole,
 } from './lib/usageLimits';
 import { checkConfigStatus } from './lib/ipqs';
+import { isClerkEnabled, roleFromClerkUser } from './lib/clerk';
 
 const STORAGE_KEY_HISTORY = 'ip_identificaitor_history';
+
+/**
+ * Syncs Clerk session → usage role when Clerk is enabled.
+ * When Clerk is off, this component is a no-op wrapper.
+ */
+function ClerkRoleSync({
+  onRoleResolved,
+}: {
+  onRoleResolved: (role: UserRole) => void;
+}) {
+  if (!isClerkEnabled) return null;
+  return <ClerkRoleSyncInner onRoleResolved={onRoleResolved} />;
+}
+
+function ClerkRoleSyncInner({
+  onRoleResolved,
+}: {
+  onRoleResolved: (role: UserRole) => void;
+}) {
+  const { isLoaded, isSignedIn, user } = useUser();
+
+  useEffect(() => {
+    if (!isLoaded) return;
+    const role = roleFromClerkUser(isSignedIn ? user : null);
+    onRoleResolved(role);
+  }, [isLoaded, isSignedIn, user, onRoleResolved]);
+
+  return null;
+}
 
 export default function App() {
   const [currentTab, setCurrentTab] = useState<'dashboard' | 'about'>('dashboard');
@@ -46,7 +77,6 @@ export default function App() {
   const [customApiKey, setCustomApiKey] = useState('');
   const [selectedHistoryItem, setSelectedHistoryItem] = useState<QueryHistoryItem | null>(null);
 
-  // Sync dark class and colorScheme on html root
   useEffect(() => {
     try {
       if (isDark) {
@@ -63,14 +93,17 @@ export default function App() {
     }
   }, [isDark]);
 
-  // Check backend IPQS configuration status on mount
   useEffect(() => {
     checkConfigStatus().then((status) => {
       setHasApiKey(status.hasApiKey);
     });
   }, []);
 
-  // Save history to localStorage
+  const handleRoleResolved = React.useCallback((role: UserRole) => {
+    const updated = setAuthRole(role);
+    setQuota(updated);
+  }, []);
+
   const handleSaveHistoryItem = (item: QueryHistoryItem) => {
     setHistory((prev) => {
       const updated = [item, ...prev.filter((i) => i.target !== item.target)].slice(0, 50);
@@ -92,8 +125,9 @@ export default function App() {
     }
   };
 
+  /** Demo-only role switcher when Clerk is not configured */
   const handleRoleChange = (role: UserRole) => {
-    const updated = setSimulatedRole(role);
+    const updated = setAuthRole(role);
     setQuota(updated);
   };
 
@@ -110,6 +144,7 @@ export default function App() {
 
   return (
     <ToastProvider>
+      <ClerkRoleSync onRoleResolved={handleRoleResolved} />
       <div className="min-h-screen flex flex-col bg-[#f8fafc] text-slate-800 dark:bg-[#090b10] dark:text-slate-100 transition-colors duration-200 selection:bg-cyan-500/20 selection:text-cyan-900 dark:selection:text-cyan-200">
         <Header
           currentTab={currentTab}

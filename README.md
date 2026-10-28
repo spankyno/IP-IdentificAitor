@@ -102,3 +102,73 @@ npx wrangler pages deploy dist --project-name=ip-identificaitor
 ## 📄 Licencia
 
 MIT. Potenciado por la API de [LayerCall](https://www.layercall.com/).
+
+---
+
+## 🔐 Clerk (registro e inicio de sesión)
+
+### 1. Crear aplicación en Clerk
+
+1. Entra en [dashboard.clerk.com](https://dashboard.clerk.com)
+2. **Create application** → nombre p. ej. `IP IdentificAitor`
+3. Activa **Email** (y Google si quieres)
+4. En **API Keys** copia:
+   - **Publishable key** → `pk_test_…` o `pk_live_…`
+   - **Secret key** → `sk_test_…` o `sk_live_…` (solo servidor)
+
+### 2. Dominios permitidos
+
+En Clerk → **Configure** → **Domains** / **Allowed origins**:
+
+- Local: `http://localhost:3000`
+- Producción: `https://ip-identificaitor.pages.dev`
+
+### 3. Variables de entorno
+
+| Variable | Dónde | Descripción |
+|----------|--------|-------------|
+| `VITE_CLERK_PUBLISHABLE_KEY` | Frontend (build) | Clave pública `pk_…`. **Obligatoria** para mostrar Entrar / Registrarse |
+| `CLERK_SECRET_KEY` | Solo servidor / Functions | Clave secreta `sk_…`. Opcional por ahora (cuotas en cliente) |
+| `LAYERCALL_API_KEY` | Functions | API LayerCall |
+
+#### Local (archivo `.env` en la raíz)
+
+```bash
+cp .env.example .env
+# Edita:
+VITE_CLERK_PUBLISHABLE_KEY=pk_test_xxxxxxxx
+# CLERK_SECRET_KEY=sk_test_xxxxxxxx   # opcional
+```
+
+Reinicia `npm run dev` tras cambiar `.env`.
+
+#### Cloudflare Pages
+
+1. **Settings** → **Environment variables**
+2. Añade (Production y Preview si aplica):
+
+| Name | Value | Encrypt |
+|------|--------|---------|
+| `VITE_CLERK_PUBLISHABLE_KEY` | `pk_test_…` o `pk_live_…` | No hace falta (es pública) |
+| `CLERK_SECRET_KEY` | `sk_test_…` o `sk_live_…` | **Sí** (secret) |
+| `LAYERCALL_API_KEY` | tu clave LayerCall | **Sí** |
+
+3. **Importante:** las variables `VITE_*` se inyectan en el **build**. Tras guardarlas, lanza un **nuevo deploy** (Retry deployment).
+
+### 4. Roles y cuotas
+
+| Estado | Rol | Consultas / día |
+|--------|-----|-----------------|
+| Sin sesión | `anonymous` | 10 |
+| Registrado / logueado | `registered` | 50 |
+| `publicMetadata.role = "admin"` en Clerk | `admin` | Ilimitadas |
+
+Para hacer admin a un usuario: Clerk Dashboard → Users → usuario → **Public metadata**:
+
+```json
+{ "role": "admin" }
+```
+
+### 5. Sin Clerk
+
+Si no defines `VITE_CLERK_PUBLISHABLE_KEY`, la app sigue en modo demo con el selector de rol simulado en el header.

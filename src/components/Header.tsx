@@ -10,7 +10,15 @@ import {
   Check,
   X,
 } from 'lucide-react';
+import {
+  SignedIn,
+  SignedOut,
+  SignInButton,
+  SignUpButton,
+  UserButton,
+} from '@clerk/clerk-react';
 import { UserRole, UsageQuota } from '../types/ipqs';
+import { isClerkEnabled } from '../lib/clerk';
 
 interface HeaderProps {
   currentTab: 'dashboard' | 'about';
@@ -30,6 +38,46 @@ const ROLE_LABELS: Record<UserRole, string> = {
   registered: 'Registrado',
   admin: 'Admin',
 };
+
+function ClerkAuthControls({ roleLabel }: { roleLabel: string }) {
+  return (
+    <div className="flex items-center gap-2">
+      <SignedOut>
+        <SignInButton mode="modal">
+          <button
+            type="button"
+            className="px-2.5 py-1.5 rounded-lg text-xs font-medium border border-slate-200 bg-slate-50 text-slate-700 hover:bg-slate-100 dark:border-white/[0.08] dark:bg-white/[0.04] dark:text-slate-200 dark:hover:bg-white/[0.08] transition-colors"
+          >
+            Entrar
+          </button>
+        </SignInButton>
+        <SignUpButton mode="modal">
+          <button
+            type="button"
+            className="px-2.5 py-1.5 rounded-lg text-xs font-semibold bg-cyan-500 text-slate-950 hover:bg-cyan-400 transition-colors shadow-sm shadow-cyan-500/20"
+          >
+            Registrarse
+          </button>
+        </SignUpButton>
+      </SignedOut>
+      <SignedIn>
+        <div className="flex items-center gap-2">
+          <span className="hidden md:inline text-[10px] uppercase tracking-wider text-slate-400 font-semibold">
+            {roleLabel}
+          </span>
+          <UserButton
+            afterSignOutUrl="/"
+            appearance={{
+              elements: {
+                avatarBox: 'w-8 h-8 ring-2 ring-cyan-500/30',
+              },
+            }}
+          />
+        </div>
+      </SignedIn>
+    </div>
+  );
+}
 
 export const Header: React.FC<HeaderProps> = ({
   currentTab,
@@ -70,7 +118,6 @@ export const Header: React.FC<HeaderProps> = ({
   return (
     <header className="w-full border-b border-slate-200/80 dark:border-white/[0.06] bg-white/85 dark:bg-[#090b10]/80 backdrop-blur-xl sticky top-0 z-40 transition-colors duration-200">
       <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-10 h-16 sm:h-20 flex items-center justify-between gap-3 sm:gap-6">
-        {/* Logo + Brand */}
         <button
           onClick={() => setCurrentTab('dashboard')}
           className="flex items-center gap-2.5 sm:gap-3 text-left group transition-transform active:scale-[0.99] shrink-0"
@@ -86,9 +133,7 @@ export const Header: React.FC<HeaderProps> = ({
           </span>
         </button>
 
-        {/* Right controls */}
         <div className="flex items-center gap-2 sm:gap-3 md:gap-4">
-          {/* Quota badge */}
           <div
             className={`hidden sm:flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-xs font-medium border transition-colors ${
               isNearLimit
@@ -97,62 +142,60 @@ export const Header: React.FC<HeaderProps> = ({
             }`}
             title={`Usadas hoy: ${quota.usedToday} / ${
               quota.maxPerDay === Number.POSITIVE_INFINITY ? '∞' : quota.maxPerDay
-            }`}
+            } · Rol: ${ROLE_LABELS[quota.role]}`}
           >
             <span className="tabular-nums font-semibold">{remaining}</span>
             <span className="text-slate-400 dark:text-slate-500">restantes</span>
           </div>
 
-          {/* Role selector (demo) */}
-          <div className="relative">
-            <button
-              onClick={() => setShowRoleMenu((v) => !v)}
-              className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-xs font-medium border border-slate-200 bg-slate-50 text-slate-600 hover:bg-slate-100 dark:border-white/[0.08] dark:bg-white/[0.04] dark:text-slate-300 dark:hover:bg-white/[0.08] transition-colors"
-              title="Cambiar rol simulado (demo)"
-            >
-              <User className="w-3.5 h-3.5" />
-              <span className="hidden md:inline">{ROLE_LABELS[quota.role]}</span>
-              <ChevronDown className="w-3 h-3 opacity-60" />
-            </button>
-
-            {showRoleMenu && (
-              <>
-                <div
-                  className="fixed inset-0 z-40"
-                  onClick={() => setShowRoleMenu(false)}
-                />
-                <div className="absolute right-0 top-full mt-1.5 z-50 w-44 rounded-xl border border-slate-200 dark:border-white/[0.1] bg-white dark:bg-[#12151e] shadow-xl py-1.5 animate-in fade-in slide-in-from-top-1">
-                  <p className="px-3 py-1 text-[10px] uppercase tracking-wider text-slate-400 font-semibold">
-                    Rol simulado
-                  </p>
-                  {(['anonymous', 'registered', 'admin'] as UserRole[]).map((role) => (
-                    <button
-                      key={role}
-                      onClick={() => {
-                        onRoleChange(role);
-                        setShowRoleMenu(false);
-                      }}
-                      className={`w-full flex items-center justify-between px-3 py-2 text-sm text-left hover:bg-slate-50 dark:hover:bg-white/[0.05] transition-colors ${
-                        quota.role === role
-                          ? 'text-cyan-600 dark:text-cyan-400 font-medium'
-                          : 'text-slate-700 dark:text-slate-300'
-                      }`}
-                    >
-                      <span>{ROLE_LABELS[role]}</span>
-                      {quota.role === role && <Check className="w-3.5 h-3.5" />}
-                    </button>
-                  ))}
-                  <div className="border-t border-slate-100 dark:border-white/[0.06] mt-1 pt-1 px-3 py-1.5">
-                    <p className="text-[10px] text-slate-400 leading-tight">
-                      Anónimo: 10/día · Registrado: 50/día · Admin: ∞
+          {isClerkEnabled ? (
+            <ClerkAuthControls roleLabel={ROLE_LABELS[quota.role]} />
+          ) : (
+            <div className="relative">
+              <button
+                onClick={() => setShowRoleMenu((v) => !v)}
+                className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-xs font-medium border border-slate-200 bg-slate-50 text-slate-600 hover:bg-slate-100 dark:border-white/[0.08] dark:bg-white/[0.04] dark:text-slate-300 dark:hover:bg-white/[0.08] transition-colors"
+                title="Rol simulado (configura Clerk para auth real)"
+              >
+                <User className="w-3.5 h-3.5" />
+                <span className="hidden md:inline">{ROLE_LABELS[quota.role]}</span>
+                <ChevronDown className="w-3 h-3 opacity-60" />
+              </button>
+              {showRoleMenu && (
+                <>
+                  <div className="fixed inset-0 z-40" onClick={() => setShowRoleMenu(false)} />
+                  <div className="absolute right-0 top-full mt-1.5 z-50 w-48 rounded-xl border border-slate-200 dark:border-white/[0.1] bg-white dark:bg-[#12151e] shadow-xl py-1.5">
+                    <p className="px-3 py-1 text-[10px] uppercase tracking-wider text-slate-400 font-semibold">
+                      Rol simulado (sin Clerk)
                     </p>
+                    {(['anonymous', 'registered', 'admin'] as UserRole[]).map((role) => (
+                      <button
+                        key={role}
+                        onClick={() => {
+                          onRoleChange(role);
+                          setShowRoleMenu(false);
+                        }}
+                        className={`w-full flex items-center justify-between px-3 py-2 text-sm text-left hover:bg-slate-50 dark:hover:bg-white/[0.05] transition-colors ${
+                          quota.role === role
+                            ? 'text-cyan-600 dark:text-cyan-400 font-medium'
+                            : 'text-slate-700 dark:text-slate-300'
+                        }`}
+                      >
+                        <span>{ROLE_LABELS[role]}</span>
+                        {quota.role === role && <Check className="w-3.5 h-3.5" />}
+                      </button>
+                    ))}
+                    <div className="border-t border-slate-100 dark:border-white/[0.06] mt-1 pt-1 px-3 py-1.5">
+                      <p className="text-[10px] text-slate-400 leading-tight">
+                        Anónimo: 10/día · Registrado: 50/día · Admin: ∞
+                      </p>
+                    </div>
                   </div>
-                </div>
-              </>
-            )}
-          </div>
+                </>
+              )}
+            </div>
+          )}
 
-          {/* API Key toggle */}
           <div className="relative">
             <button
               onClick={() => {
@@ -172,14 +215,10 @@ export const Header: React.FC<HeaderProps> = ({
             >
               <Key className="w-4 h-4" />
             </button>
-
             {showApiKeyInput && (
               <>
-                <div
-                  className="fixed inset-0 z-40"
-                  onClick={() => setShowApiKeyInput(false)}
-                />
-                <div className="absolute right-0 top-full mt-1.5 z-50 w-72 sm:w-80 rounded-xl border border-slate-200 dark:border-white/[0.1] bg-white dark:bg-[#12151e] shadow-xl p-3 animate-in fade-in slide-in-from-top-1">
+                <div className="fixed inset-0 z-40" onClick={() => setShowApiKeyInput(false)} />
+                <div className="absolute right-0 top-full mt-1.5 z-50 w-72 sm:w-80 rounded-xl border border-slate-200 dark:border-white/[0.1] bg-white dark:bg-[#12151e] shadow-xl p-3">
                   <div className="flex items-center justify-between mb-2">
                     <p className="text-xs font-semibold text-slate-700 dark:text-slate-200">
                       Clave API LayerCall
@@ -191,11 +230,6 @@ export const Header: React.FC<HeaderProps> = ({
                       <X className="w-3.5 h-3.5" />
                     </button>
                   </div>
-                  <p className="text-[11px] text-slate-500 dark:text-slate-400 mb-2 leading-snug">
-                    {hasApiKey
-                      ? 'El servidor ya tiene una clave. Puedes sobrescribirla temporalmente.'
-                      : 'Sin clave se usa el modo Sandbox con respuestas simuladas.'}
-                  </p>
                   <input
                     type="password"
                     value={tempApiKey}
@@ -227,32 +261,25 @@ export const Header: React.FC<HeaderProps> = ({
             )}
           </div>
 
-          {/* History button */}
           <button
             onClick={onOpenHistory}
             className="p-2 rounded-xl border border-slate-200 bg-slate-100/70 text-slate-600 hover:text-slate-900 hover:bg-slate-200/80 dark:border-white/[0.08] dark:bg-white/[0.03] dark:text-slate-400 dark:hover:text-white dark:hover:bg-white/[0.08] transition-colors"
             title="Historial de consultas"
-            aria-label="Abrir historial"
           >
             <History className="w-4 h-4" />
           </button>
 
-          {/* About / Analyzer toggle */}
           <button
-            onClick={() =>
-              setCurrentTab(currentTab === 'about' ? 'dashboard' : 'about')
-            }
+            onClick={() => setCurrentTab(currentTab === 'about' ? 'dashboard' : 'about')}
             className="hidden sm:inline text-sm font-medium text-slate-600 hover:text-slate-900 dark:text-slate-400 dark:hover:text-white transition-colors"
           >
             {currentTab === 'about' ? 'Analizador' : 'Acerca de'}
           </button>
 
-          {/* Theme toggle */}
           <button
             onClick={toggleTheme}
             className="p-2 rounded-xl border border-slate-200 bg-slate-100/70 text-slate-700 hover:text-slate-900 hover:bg-slate-200/80 dark:border-white/[0.08] dark:bg-white/[0.03] dark:text-slate-400 dark:hover:text-white dark:hover:bg-white/[0.08] transition-colors"
-            title={isDark ? 'Cambiar a modo claro' : 'Cambiar a modo oscuro'}
-            aria-label="Cambiar tema"
+            title={isDark ? 'Modo claro' : 'Modo oscuro'}
           >
             {isDark ? (
               <Sun className="w-4 h-4 text-amber-400" />

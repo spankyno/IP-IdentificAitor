@@ -1,7 +1,7 @@
 import { UserRole, UsageQuota } from '../types/ipqs';
 
 const STORAGE_KEY_USAGE = 'ip_identificaitor_usage';
-const STORAGE_KEY_ROLE = 'ip_identificaitor_simulated_role';
+const STORAGE_KEY_ROLE = 'ip_identificaitor_role';
 
 export const ROLE_LIMITS: Record<UserRole, number> = {
   anonymous: 10,
@@ -15,12 +15,14 @@ function getTodayString(): string {
 }
 
 /**
- * Manages daily rate limits for anonymous/registered/admin accounts.
- * Architecture Note for Clerk:
- * When integrating Clerk:
- *   const { userId, sessionClaims } = auth();
- *   const role: UserRole = sessionClaims?.metadata?.role || (userId ? 'registered' : 'anonymous');
- * The backend API route will check tokens against a Redis / KV or DB counter.
+ * Daily rate limits for anonymous / registered / admin.
+ *
+ * With Clerk:
+ *   - Signed out → anonymous (10/day)
+ *   - Signed in → registered (50/day)
+ *   - publicMetadata.role === 'admin' → unlimited
+ * Role is set via setAuthRole() from App when Clerk session changes.
+ * Without Clerk, setAuthRole can still be used for local demo.
  */
 export function getSavedUsageQuota(): UsageQuota {
   const today = getTodayString();
@@ -44,7 +46,6 @@ export function getSavedUsageQuota(): UsageQuota {
     console.error('Error reading usage quota from localStorage:', e);
   }
 
-  // New day or uninitialized
   const fresh: UsageQuota = {
     role: currentRole,
     usedToday: 0,
@@ -63,13 +64,19 @@ export function saveUsageQuota(quota: UsageQuota): void {
   }
 }
 
-export function setSimulatedRole(newRole: UserRole): UsageQuota {
+/** Persist role (from Clerk session or local demo selector). */
+export function setAuthRole(newRole: UserRole): UsageQuota {
   localStorage.setItem(STORAGE_KEY_ROLE, newRole);
   const current = getSavedUsageQuota();
   current.role = newRole;
   current.maxPerDay = ROLE_LIMITS[newRole];
   saveUsageQuota(current);
   return current;
+}
+
+/** @deprecated Use setAuthRole — kept for compatibility */
+export function setSimulatedRole(newRole: UserRole): UsageQuota {
+  return setAuthRole(newRole);
 }
 
 export function incrementUsageCount(): { allowed: boolean; updatedQuota: UsageQuota } {
