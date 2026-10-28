@@ -1,0 +1,13 @@
+# Cloudflare Pages — configuración de referencia
+# En el Dashboard > Pages > Settings > Builds:
+#   Framework preset: Vite
+#   Build command:    npm run build
+#   Build output dir: dist
+#   Root directory:   /
+#
+# Variables de entorno (Settings > Environment variables):
+#   LAYERCALL_API_KEY = tl_live_...
+
+name = "ip-identificaitor"
+compatibility_date = "2024-09-23"
+pages_build_output_dir = "dist"
