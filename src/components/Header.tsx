@@ -151,11 +151,27 @@ export const Header: React.FC<HeaderProps> = ({
           {isClerkEnabled ? (
             <ClerkAuthControls roleLabel={ROLE_LABELS[quota.role]} />
           ) : (
-            <div className="relative">
+            <div className="relative flex items-center gap-2">
+              <button
+                type="button"
+                onClick={() =>
+                  alert(
+                    'Clerk no está configurado.\n\n' +
+                      '1. En Cloudflare Pages → Settings → Environment variables\n' +
+                      '2. Añade VITE_CLERK_PUBLISHABLE_KEY = pk_test_… (o pk_live_…)\n' +
+                      '3. Retry deployment (obligatorio: la clave se inyecta en el build)\n\n' +
+                      'También puedes usar un archivo .env en local.'
+                  )
+                }
+                className="px-2.5 py-1.5 rounded-lg text-xs font-semibold bg-cyan-500 text-slate-950 hover:bg-cyan-400 transition-colors shadow-sm shadow-cyan-500/20"
+                title="Configura VITE_CLERK_PUBLISHABLE_KEY y vuelve a desplegar"
+              >
+                Registrarse
+              </button>
               <button
                 onClick={() => setShowRoleMenu((v) => !v)}
                 className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-xs font-medium border border-slate-200 bg-slate-50 text-slate-600 hover:bg-slate-100 dark:border-white/[0.08] dark:bg-white/[0.04] dark:text-slate-300 dark:hover:bg-white/[0.08] transition-colors"
-                title="Rol simulado (configura Clerk para auth real)"
+                title="Rol simulado (demo)"
               >
                 <User className="w-3.5 h-3.5" />
                 <span className="hidden md:inline">{ROLE_LABELS[quota.role]}</span>
