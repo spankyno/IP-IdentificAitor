@@ -16,17 +16,41 @@ const PORT = process.env.PORT ? parseInt(process.env.PORT) : 3000;
 
 app.use(express.json());
 
+// Rate limit simple en memoria (solo dev/local; en Pages usa Cache API)
+const rateLimitMap = new Map<string, { count: number; reset: number }>();
+const RATE_LIMIT = 40;
+const RATE_WINDOW_MS = 60_000;
+app.use('/api/', (req, res, next) => {
+  const ip = (req.headers['x-forwarded-for'] as string)?.split(',')[0]?.trim() || req.socket.remoteAddress || 'unknown';
+  const now = Date.now();
+  let entry = rateLimitMap.get(ip);
+  if (!entry || now > entry.reset) {
+    entry = { count: 0, reset: now + RATE_WINDOW_MS };
+    rateLimitMap.set(ip, entry);
+  }
+  entry.count += 1;
+  if (entry.count > RATE_LIMIT) {
+    res.status(429).json({ success: false, message: 'Demasiadas solicitudes. Espera un minuto e inténtalo de nuevo.' });
+    return;
+  }
+  next();
+});
+
 // Helper to determine active API key
 function getApiKey(req: Request): string | undefined {
-  const queryKey = req.query.apiKey as string | undefined;
-  if (queryKey && queryKey.trim().length > 5) {
-    return queryKey.trim();
-  }
+  // Prefer header (never rely on query strings for secrets)
   const headerKey = req.headers['x-api-key'] as string | undefined;
-  if (headerKey && headerKey.trim().length > 5) {
+  if (headerKey && headerKey.trim().length > 5 && headerKey.trim().length <= 200) {
     return headerKey.trim();
   }
-  return process.env.LAYERCALL_API_KEY || process.env.IPQS_API_KEY;
+  if (process.env.LAYERCALL_API_KEY?.trim()) return process.env.LAYERCALL_API_KEY.trim();
+  if (process.env.IPQS_API_KEY?.trim()) return process.env.IPQS_API_KEY.trim();
+  // Deprecated: query apiKey (capped) — kept for older clients only
+  const queryKey = req.query.apiKey as string | undefined;
+  if (queryKey && queryKey.trim().length > 5 && queryKey.trim().length <= 200) {
+    return queryKey.trim();
+  }
+  return undefined;
 }
 
 // Sandbox IP Generator

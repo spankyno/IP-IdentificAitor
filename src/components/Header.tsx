@@ -105,7 +105,9 @@ export const Header: React.FC<HeaderProps> = ({
     quota.usedToday >= quota.maxPerDay * 0.8;
 
   const handleSaveApiKey = () => {
-    setCustomApiKey(tempApiKey.trim());
+    const key = tempApiKey.trim().slice(0, 200);
+    setCustomApiKey(key);
+    setTempApiKey(''); // no dejar la clave visible en el input
     setShowApiKeyInput(false);
   };
 
@@ -114,6 +116,13 @@ export const Header: React.FC<HeaderProps> = ({
     setCustomApiKey('');
     setShowApiKeyInput(false);
   };
+
+  const maskedKey =
+    customApiKey.length > 8
+      ? `${customApiKey.slice(0, 4)}…${customApiKey.slice(-4)}`
+      : customApiKey
+        ? '••••••••'
+        : '';
 
   return (
     <header className="w-full border-b border-slate-200/80 dark:border-white/[0.06] bg-white/85 dark:bg-[#090b10]/80 backdrop-blur-xl sticky top-0 z-40 transition-colors duration-200">
@@ -215,7 +224,7 @@ export const Header: React.FC<HeaderProps> = ({
           <div className="relative">
             <button
               onClick={() => {
-                setTempApiKey(customApiKey);
+                setTempApiKey(''); // no reexponer la clave guardada
                 setShowApiKeyInput((v) => !v);
               }}
               className={`p-2 rounded-xl border transition-colors ${
@@ -246,11 +255,18 @@ export const Header: React.FC<HeaderProps> = ({
                       <X className="w-3.5 h-3.5" />
                     </button>
                   </div>
+                  {customApiKey ? (
+                    <p className="text-[11px] text-emerald-600 dark:text-emerald-400 font-mono mb-2">
+                      Clave en sesión: {maskedKey} (solo cabecera X-Api-Key, no se guarda en disco)
+                    </p>
+                  ) : null}
                   <input
                     type="password"
                     value={tempApiKey}
-                    onChange={(e) => setTempApiKey(e.target.value)}
-                    placeholder="tl_live_..."
+                    onChange={(e) => setTempApiKey(e.target.value.slice(0, 200))}
+                    placeholder={customApiKey ? 'Nueva clave (opcional)' : 'tl_live_...'}
+                    autoComplete="off"
+                    spellCheck={false}
                     className="w-full px-3 py-2 text-sm rounded-lg border border-slate-200 dark:border-white/[0.1] bg-slate-50 dark:bg-white/[0.04] text-slate-900 dark:text-white placeholder:text-slate-400 focus:outline-none focus:border-cyan-500 focus:ring-2 focus:ring-cyan-500/20 font-mono"
                     onKeyDown={(e) => {
                       if (e.key === 'Enter') handleSaveApiKey();

@@ -1,30 +1,42 @@
-import { getMockPhoneAnalysis, json } from "../_mocks.js";
+import { getMockPhoneAnalysis } from "../_mocks.js";
+import {
+  json,
+  handleOptions,
+  enforceRateLimit,
+  requireParam,
+  resolveApiKey,
+  MAX_LEN,
+} from "../_security.js";
+
+export async function onRequestOptions(context) {
+  return handleOptions(context.request);
+}
 
 export async function onRequestGet(context) {
+  const { request, env } = context;
   try {
-    const url = new URL(context.request.url);
-    const phone = url.searchParams.get("phone");
-    if (!phone) {
-      return json({ success: false, message: "Parámetro Phone es requerido" }, 400);
-    }
+    const limited = await enforceRateLimit(request);
+    if (limited) return limited;
 
-    const country = url.searchParams.get("country") || "ES";
-    const apiKey =
-      url.searchParams.get("apiKey") ||
-      context.request.headers.get("x-api-key") ||
-      context.env.LAYERCALL_API_KEY ||
-      context.env.IPQS_API_KEY;
+    const url = new URL(request.url);
+    const parsed = requireParam(url.searchParams.get("phone"), MAX_LEN.phone, "Phone");
+    if (!parsed.ok) return json({ success: false, message: parsed.message }, 400, request);
+
+    let country = url.searchParams.get("country") || "ES";
+    if (country.length > MAX_LEN.country) country = "ES";
+
+    const apiKey = resolveApiKey(request, env);
 
     if (apiKey) {
       try {
-        const layercallUrl = `https://www.layercall.com/v1/lookup/phone?phone=${encodeURIComponent(phone)}`;
+        const layercallUrl = `https://www.layercall.com/v1/lookup/phone?phone=${encodeURIComponent(parsed.value)}`;
         const response = await fetch(layercallUrl, {
           headers: { Accept: "application/json", "X-Api-Key": apiKey },
         });
         if (response.ok) {
           const data = await response.json();
           if (data && (data.risk_score !== undefined || data.verdict)) {
-            return json({ ...data, phone, is_sandbox: false });
+            return json({ ...data, phone: parsed.value, is_sandbox: false }, 200, request);
           }
         }
       } catch (_) {
@@ -32,8 +44,8 @@ export async function onRequestGet(context) {
       }
     }
 
-    return json(getMockPhoneAnalysis(phone.trim(), country));
+    return json(getMockPhoneAnalysis(parsed.value, country), 200, request);
   } catch (error) {
-    return json({ success: false, message: error.message || "Error interno" }, 500);
+    return json({ success: false, message: error.message || "Error interno" }, 500, request);
   }
 }

@@ -68,3 +68,11 @@ describe('isValidDomain', () => {
     assert.equal(isValidDomain('no spaces.com'), false);
   });
 });
+
+describe('length limits', () => {
+  it('rejects overlong inputs', () => {
+    assert.equal(isValidIP('1'.repeat(50)), false);
+    assert.equal(isValidEmail('a'.repeat(250) + '@x.com'), false);
+    assert.equal(isValidDomain('a'.repeat(260) + '.com'), false);
+  });
+});

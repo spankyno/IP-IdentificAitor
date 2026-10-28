@@ -1,30 +1,43 @@
-import { getMockIPAnalysis, json } from "../_mocks.js";
+import { getMockIPAnalysis } from "../_mocks.js";
+import {
+  json,
+  handleOptions,
+  enforceRateLimit,
+  requireParam,
+  resolveApiKey,
+  MAX_LEN,
+} from "../_security.js";
+
+export async function onRequestOptions(context) {
+  return handleOptions(context.request);
+}
 
 export async function onRequestGet(context) {
+  const { request, env } = context;
   try {
-    const url = new URL(context.request.url);
-    const ip = url.searchParams.get("ip");
-    if (!ip) {
-      return json({ success: false, message: "Parámetro IP es requerido" }, 400);
-    }
+    const limited = await enforceRateLimit(request);
+    if (limited) return limited;
 
-    const strictness = parseInt(url.searchParams.get("strictness") || "1", 10);
-    const apiKey =
-      url.searchParams.get("apiKey") ||
-      context.request.headers.get("x-api-key") ||
-      context.env.LAYERCALL_API_KEY ||
-      context.env.IPQS_API_KEY;
+    const url = new URL(request.url);
+    const parsed = requireParam(url.searchParams.get("ip"), MAX_LEN.ip, "IP");
+    if (!parsed.ok) return json({ success: false, message: parsed.message }, 400, request);
+
+    const strictness = Math.min(
+      3,
+      Math.max(0, parseInt(url.searchParams.get("strictness") || "1", 10) || 1)
+    );
+    const apiKey = resolveApiKey(request, env);
 
     if (apiKey) {
       try {
-        const layercallUrl = `https://www.layercall.com/v1/score/ip?ip=${encodeURIComponent(ip)}&strictness=${strictness}`;
+        const layercallUrl = `https://www.layercall.com/v1/score/ip?ip=${encodeURIComponent(parsed.value)}&strictness=${strictness}`;
         const response = await fetch(layercallUrl, {
           headers: { Accept: "application/json", "X-Api-Key": apiKey },
         });
         if (response.ok) {
           const data = await response.json();
           if (data && (data.risk_score !== undefined || data.verdict)) {
-            return json({ ...data, ip, is_sandbox: false });
+            return json({ ...data, ip: parsed.value, is_sandbox: false }, 200, request);
           }
         }
       } catch (_) {
@@ -32,8 +45,8 @@ export async function onRequestGet(context) {
       }
     }
 
-    return json(getMockIPAnalysis(ip.trim(), strictness));
+    return json(getMockIPAnalysis(parsed.value, strictness), 200, request);
   } catch (error) {
-    return json({ success: false, message: error.message || "Error interno" }, 500);
+    return json({ success: false, message: error.message || "Error interno" }, 500, request);
   }
 }

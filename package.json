@@ -14,9 +14,10 @@
     "preview": "vite preview",
     "clean": "rm -rf dist",
     "lint": "tsc --noEmit",
-    "test": "tsx --test src/lib/validators.test.ts && node --test functions/_mocks.test.js",
+    "test": "tsx --test src/lib/validators.test.ts && node --test functions/_mocks.test.js functions/_security.test.js",
     "test:validators": "tsx --test src/lib/validators.test.ts",
-    "test:mocks": "node --test functions/_mocks.test.js"
+    "test:mocks": "node --test functions/_mocks.test.js",
+    "test:security": "node --test functions/_security.test.js"
   },
   "dependencies": {
     "@clerk/clerk-react": "^5.25.0",
