@@ -454,31 +454,43 @@ app.get('/api/check-domain', async (req: Request, res: Response) => {
   }
 });
 
+/**
+ * Force correct MIME for ES modules. Some hosts (static CDNs, previews)
+ * respond with application/octet-stream for .js/.tsx, which browsers reject
+ * for <script type="module">.
+ */
+function forceModuleMime(req: Request, res: Response, next: () => void) {
+  const urlPath = (req.path || '').split('?')[0];
+  if (/\.(js|mjs|cjs|ts|tsx|jsx)$/i.test(urlPath)) {
+    const originalSetHeader = res.setHeader.bind(res);
+    res.setHeader = ((name: string, value: string | number | readonly string[]) => {
+      if (String(name).toLowerCase() === 'content-type') {
+        // Always claim JavaScript for module-capable extensions
+        return originalSetHeader('Content-Type', 'text/javascript; charset=utf-8');
+      }
+      return originalSetHeader(name, value as string);
+    }) as typeof res.setHeader;
+  }
+  next();
+}
+
 // Start server
 async function start() {
   const distPath = path.resolve(__dirname, 'dist');
   const hasDist = fs.existsSync(path.join(distPath, 'index.html'));
   const isProd = process.env.NODE_ENV === 'production';
+  // Prefer static dist only when explicitly requested AND dist exists
+  const useStatic = isProd && hasDist && process.env.SERVE_STATIC === '1';
 
-  // Prefer Vite middleware in development, or when dist is missing
-  if (!isProd || !hasDist) {
-    if (isProd && !hasDist) {
-      console.warn(
-        '[warn] NODE_ENV=production but dist/ is missing. Falling back to Vite middleware. Run "npm run build" first.'
-      );
-    }
-    const vite = await createViteServer({
-      server: { middlewareMode: true },
-      appType: 'spa',
-    });
-    app.use(vite.middlewares);
-  } else {
-    // Production: serve built assets with correct MIME types for ES modules
+  // Apply MIME fix for all downstream handlers
+  app.use(forceModuleMime);
+
+  if (useStatic) {
+    // Production static (opt-in via SERVE_STATIC=1)
     app.use(
       express.static(distPath, {
         setHeaders(res, filePath) {
           if (filePath.endsWith('.js') || filePath.endsWith('.mjs')) {
-            // Browsers require a JavaScript MIME type for type="module" scripts
             res.setHeader('Content-Type', 'text/javascript; charset=utf-8');
           } else if (filePath.endsWith('.css')) {
             res.setHeader('Content-Type', 'text/css; charset=utf-8');
@@ -488,25 +500,41 @@ async function start() {
             res.setHeader('Content-Type', 'application/json; charset=utf-8');
           }
         },
-        // Avoid sending index.html for missing assets (SPA fallback handles routes)
         index: false,
       })
     );
 
-    // SPA fallback: all non-API routes → index.html
     app.get('*', (req: Request, res: Response, next) => {
-      if (req.path.startsWith('/api/')) {
-        return next();
-      }
+      if (req.path.startsWith('/api/')) return next();
       res.sendFile(path.join(distPath, 'index.html'), (err) => {
         if (err) next(err);
       });
     });
+  } else {
+    // Default: Vite middleware transforms .tsx → JS with correct MIME.
+    // This is required so <script type="module" src="/src/main.tsx"> works.
+    const vite = await createViteServer({
+      server: {
+        middlewareMode: true,
+        // Ensure transformed modules are never labelled as octet-stream
+        headers: {
+          'X-Content-Type-Options': 'nosniff',
+        },
+      },
+      appType: 'spa',
+      // Clear cache issues that sometimes leave stale transforms
+      optimizeDeps: {
+        include: ['react', 'react-dom', 'react-dom/client', 'lucide-react', 'motion'],
+      },
+    });
+    app.use(vite.middlewares);
   }
 
   app.listen(PORT, '0.0.0.0', () => {
     console.log(`IP IdentificAitor server running on http://0.0.0.0:${PORT}`);
-    console.log(`Mode: ${isProd && hasDist ? 'production (static dist)' : 'development (Vite middleware)'}`);
+    console.log(
+      `Mode: ${useStatic ? 'production (static dist)' : 'Vite middleware (transforms /src/*.tsx)'}`
+    );
   });
 }
 
