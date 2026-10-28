@@ -1,5 +1,11 @@
 import React from 'react';
-import { ArrowRight, Globe, Mail, Phone, ShieldCheck, Cpu } from 'lucide-react';
+import { ArrowRight, Globe, Mail, Phone, ShieldCheck, Cpu, ExternalLink } from 'lucide-react';
+
+const OG_IMAGE = '/og-image.png';
+const SITE_URL = 'https://ip-identificaitor.pages.dev/';
+const BLOG_URL = 'https://aitorsanchez.pages.dev/';
+const HUB_URL = 'https://aitorhub.vercel.app/';
+const CONTACT_URL = 'https://aitorsanchez.pages.dev/contacto';
 
 export const AboutView: React.FC<{ onGoToAnalyzer: () => void }> = ({ onGoToAnalyzer }) => {
   return (
@@ -13,9 +19,36 @@ export const AboutView: React.FC<{ onGoToAnalyzer: () => void }> = ({ onGoToAnal
           Acerca de IP IdentificAitor
         </h1>
         <p className="text-lg text-slate-600 dark:text-slate-400 leading-relaxed font-normal">
-          Una plataforma unificada diseñada para evaluar en tiempo real el nivel de riesgo de identidades digitales y prevenir el fraude, abuso y actividades automatizadas.
+          Una plataforma unificada diseñada para evaluar en tiempo real el nivel de riesgo de identidades
+          digitales y prevenir el fraude, abuso y actividades automatizadas.
         </p>
       </div>
+
+      {/* Open Graph preview image */}
+      <figure className="max-w-3xl mx-auto space-y-3">
+        <div className="overflow-hidden rounded-2xl border border-slate-200/90 dark:border-white/[0.08] shadow-lg dark:shadow-xl bg-slate-900">
+          <img
+            src={OG_IMAGE}
+            alt="IP IdentificAitor — Inteligencia de amenazas y reputación digital (imagen Open Graph 1200×630)"
+            width={1200}
+            height={630}
+            className="w-full h-auto object-cover"
+            loading="lazy"
+            decoding="async"
+          />
+        </div>
+        <figcaption className="text-center text-xs text-slate-500 dark:text-slate-400">
+          Imagen social (Open Graph / Twitter) · 1200 × 630 ·{' '}
+          <a
+            href={SITE_URL}
+            className="text-cyan-600 dark:text-cyan-400 hover:underline"
+            target="_blank"
+            rel="noopener noreferrer"
+          >
+            ip-identificaitor.pages.dev
+          </a>
+        </figcaption>
+      </figure>
 
       {/* 5 Vectors of Threat Intelligence */}
       <div className="p-8 sm:p-12 rounded-3xl bg-white dark:bg-[#0f121a] border border-slate-200/90 dark:border-white/[0.08] shadow-sm dark:shadow-xl space-y-8 transition-colors">
@@ -122,7 +155,58 @@ export const AboutView: React.FC<{ onGoToAnalyzer: () => void }> = ({ onGoToAnal
         </div>
       </div>
 
-      {/* CTA back to analyzer */}
+      {/* Autor y enlaces */}
+      <div className="p-8 sm:p-10 rounded-3xl bg-white dark:bg-[#0f121a] border border-slate-200/90 dark:border-white/[0.08] space-y-5 transition-colors">
+        <h2 className="text-xl font-bold text-slate-900 dark:text-white tracking-tight">Autor y recursos</h2>
+        <p className="text-sm text-slate-600 dark:text-slate-400 leading-relaxed">
+          <strong className="text-slate-900 dark:text-white">Aitor Sánchez Gutiérrez</strong> — desarrollador de IP
+          IdentificAitor. Explora más proyectos y contacto en los siguientes enlaces.
+        </p>
+        <ul className="flex flex-col sm:flex-row flex-wrap gap-3 text-sm">
+          <li>
+            <a
+              href={SITE_URL}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="inline-flex items-center gap-1.5 text-cyan-600 dark:text-cyan-400 hover:underline font-medium"
+            >
+              Esta aplicación <ExternalLink className="w-3.5 h-3.5" />
+            </a>
+          </li>
+          <li>
+            <a
+              href={BLOG_URL}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="inline-flex items-center gap-1.5 text-cyan-600 dark:text-cyan-400 hover:underline font-medium"
+            >
+              Blog <ExternalLink className="w-3.5 h-3.5" />
+            </a>
+          </li>
+          <li>
+            <a
+              href={HUB_URL}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="inline-flex items-center gap-1.5 text-cyan-600 dark:text-cyan-400 hover:underline font-medium"
+            >
+              Aitor Hub <ExternalLink className="w-3.5 h-3.5" />
+            </a>
+          </li>
+          <li>
+            <a
+              href={CONTACT_URL}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="inline-flex items-center gap-1.5 text-cyan-600 dark:text-cyan-400 hover:underline font-medium"
+            >
+              Contacto <ExternalLink className="w-3.5 h-3.5" />
+            </a>
+          </li>
+        </ul>
+      </div>
+
+      {/* CTA */}
       <div className="text-center pt-4">
         <button
           onClick={onGoToAnalyzer}
